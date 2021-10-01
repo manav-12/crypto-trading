@@ -1,0 +1,52 @@
+import pandas as pd
+from binance.client import Client
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+class Crypto:
+    def __init__(self):
+        """
+        Gets the user key and secret key for binance exchange from the env file
+        """
+        user_key = os.getenv('USER_KEY')
+        secret_key = os.getenv('SECRET_KEY')
+        self.binance_client = Client(user_key, secret_key)
+
+    def get_previous_date(self):
+        """
+        :return: function gets the yesterdays date
+        """
+        yesterday = datetime.now() - timedelta(1)
+        datetime.strftime(yesterday, '%Y-%m-%d')
+
+    def get_historical_data(self,symbl, intvl, st_dt, ed_dt):
+        """
+        :param symbl: Symbl is the ticker of the crypto for which data needs to fetched
+        :param intvl: interval is the time frame for which the data is to be considered ex 15m,1hr
+        :param st_dt: start date
+        :param ed_dt: end date
+        :return: data frame for the specified start and end date containing open close
+                 high low prices for the timeframe
+        """
+        hist_binance = self.binance_client.futures_historical_klines(
+            symbol=symbl,
+            interval=intvl,
+            start_str=st_dt,
+            end_str=ed_dt
+        )
+        crypto_data_df = pd.DataFrame(hist_binance)
+        crypto_data_df = crypto_data_df.iloc[:, :6]
+        # ascribe names to columns
+        crypto_data_df.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        # convert timestamp to date format and ensure ohlcv are all numeric
+        crypto_data_df['date'] = pd.to_datetime(crypto_data_df['date'])
+        for col in crypto_data_df.columns[1:]:
+            crypto_data_df[col] = pd.to_numeric(crypto_data_df[col])
+        return crypto_data_df
+
+if __name__ == '__main__':
+    crypto = Crypto()
+    crypto.get_historical_data(symbl = 'BTCUSDT', intvl = '15m', st_dt = '2021-06-01', ed_dt = crypto.get_previous_date())
